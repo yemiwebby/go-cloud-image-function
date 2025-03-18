@@ -22,7 +22,7 @@ jobs:
     steps:
       - checkout
       - run:
-          name: Install gcloud CLI
+          name: Install gcloud CLI.
           command: |
             export CLOUDSDK_CORE_DISABLE_PROMPTS=1
             curl https://sdk.cloud.google.com | bash
