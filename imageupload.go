@@ -31,6 +31,9 @@ func ImageUploaded(ctx context.Context, e cloudevents.Event) error {
 		return fmt.Errorf("failed to parse event data: %v", err)
 	}
 
+	if payload.Bucket == "" || payload.Name == "" {
+		return fmt.Errorf("invalid event data: missing bucket or name")
+	}
 
 	timestamp := payload.TimeCreated
 	if timestamp == "" {

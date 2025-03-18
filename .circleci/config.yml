@@ -51,7 +51,7 @@ jobs:
             gcloud functions deploy goCloudFunc \
               --region=us-west1 \
               --runtime go121 \
-              --trigger-resource YOUR_BUCKET_NAME \
+              --trigger-resource go-func-bucket \
               --trigger-event google.storage.object.finalize \
               --allow-unauthenticated \
               --entry-point ImageUploaded \
