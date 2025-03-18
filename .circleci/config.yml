@@ -1,0 +1,69 @@
+version: 2.1
+
+orbs:
+  go: circleci/go@2.2.5
+
+jobs:
+  build-and-test:
+    docker:
+      - image: cimg/go:1.24.1
+    steps:
+      - checkout
+      - run:
+          name: Tidy Modules
+          command: go mod tidy
+      - run:
+          name: Run Unit Tests
+          command: go test ./...
+
+  deploy:
+    docker:
+      - image: cimg/base:stable
+    steps:
+      - checkout
+      - run:
+          name: Install gcloud CLI
+          command: |
+            export CLOUDSDK_CORE_DISABLE_PROMPTS=1
+            curl https://sdk.cloud.google.com | bash
+            source /home/circleci/google-cloud-sdk/path.bash.inc
+            source /home/circleci/google-cloud-sdk/completion.bash.inc
+            echo "source /home/circleci/google-cloud-sdk/path.bash.inc" >> $BASH_ENV
+            echo "source /home/circleci/google-cloud-sdk/completion.bash.inc" >> $BASH_ENV
+            gcloud version
+      - run:
+          name: Authenticate with GCP
+          command: |
+            echo "$GOOGLE_SERVICE_ACCOUNT_KEY" > /tmp/account.json
+            gcloud auth activate-service-account --key-file=/tmp/account.json
+            gcloud config set project "$GCP_PROJECT_ID"
+      - run:
+          name: Enable Required APIs
+          command: |
+            gcloud services enable \
+              cloudfunctions.googleapis.com \
+              cloudresourcemanager.googleapis.com \
+              cloudbuild.googleapis.com \
+              --project "$GCP_PROJECT_ID"
+      - run:
+          name: Deploy Cloud Function (Gen1)
+          command: |
+            gcloud functions deploy goCloudFunc \
+              --region=us-west1 \
+              --runtime go121 \
+              --trigger-resource YOUR_BUCKET_NAME \
+              --trigger-event google.storage.object.finalize \
+              --allow-unauthenticated \
+              --entry-point ImageUploaded \
+              --source . \
+              --set-build-env-vars GOFLAGS="-buildvcs=false" \
+              --no-gen2
+
+workflows:
+  version: 2
+  build-test-deploy:
+    jobs:
+      - build-and-test
+      - deploy:
+          requires:
+            - build-and-test
